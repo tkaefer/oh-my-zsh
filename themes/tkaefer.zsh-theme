@@ -1,6 +1,6 @@
-# AVIT ZSH Theme
+# borrowed from AVIT ZSH Theme
 
-PROMPT='$(_user_host)${_current_dir} $(git_prompt_info)
+PROMPT='$(_user_host)${_current_dir} $(git_prompt_info) $(_date)
 $ '
 
 PROMPT2='%{$fg[grey]%}◀%{$reset_color%} '
@@ -11,6 +11,9 @@ local _current_dir="%{$fg[blue]%}%3~%{$reset_color%} "
 local _return_status="%{$fg[red]%}%(?..⍉)%{$reset_color%}"
 local _hist_no="%{$fg[grey]%}%h%{$reset_color%}"
 
+function _date() {
+    echo "%{$fg[yellow]%}$(date +'%F %T')%{$reset_color%}"
+}
 function _user_host() {
     me="%n@%m"
     echo "%{$fg[cyan]%}$me%{$reset_color%}:"
