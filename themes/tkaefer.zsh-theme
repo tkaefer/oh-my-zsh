@@ -1,38 +1,60 @@
-# borrowed from AVIT ZSH Theme
+function my_git_prompt() {
+  tester=$(git rev-parse --git-dir 2> /dev/null) || return
 
-PROMPT='$(_user_host)${_current_dir} $(git_prompt_info) $(_date)
-$ '
+  INDEX=$(git status --porcelain 2> /dev/null)
+  STATUS=""
 
-PROMPT2='%{$fg[grey]%}◀%{$reset_color%} '
+  # is branch ahead?
+  if $(echo "$(git log origin/$(git_current_branch)..HEAD 2> /dev/null)" | grep '^commit' &> /dev/null); then
+    STATUS="$STATUS$ZSH_THEME_GIT_PROMPT_AHEAD"
+  fi
 
-RPROMPT='$(_vi_status)%{$(echotc UP 1)%}$(_git_time_since_commit) $(git_prompt_status) ${_return_status}%{$(echotc DO 1)%}'
+  # is anything staged?
+  if $(echo "$INDEX" | command grep -E -e '^(D[ M]|[MARC][ MD]) ' &> /dev/null); then
+    STATUS="$STATUS$ZSH_THEME_GIT_PROMPT_STAGED"
+  fi
 
-local _current_dir="%{$fg[blue]%}%3~%{$reset_color%} "
-local _return_status="%{$fg[red]%}%(?..⍉)%{$reset_color%}"
-local _hist_no="%{$fg[grey]%}%h%{$reset_color%}"
+  # is anything unstaged?
+  if $(echo "$INDEX" | command grep -E -e '^[ MARC][MD] ' &> /dev/null); then
+    STATUS="$STATUS$ZSH_THEME_GIT_PROMPT_UNSTAGED"
+  fi
+
+  # is anything untracked?
+  if $(echo "$INDEX" | grep '^?? ' &> /dev/null); then
+    STATUS="$STATUS$ZSH_THEME_GIT_PROMPT_UNTRACKED"
+  fi
+
+  # is anything unmerged?
+  if $(echo "$INDEX" | command grep -E -e '^(A[AU]|D[DU]|U[ADU]) ' &> /dev/null); then
+    STATUS="$STATUS$ZSH_THEME_GIT_PROMPT_UNMERGED"
+  fi
+
+  if [[ -n $STATUS ]]; then
+    STATUS=" $STATUS"
+  fi
+
+  echo "$ZSH_THEME_GIT_PROMPT_PREFIX$(my_current_branch) $(_git_time_since_commit)$STATUS$ZSH_THEME_GIT_PROMPT_SUFFIX"
+}
+
+function my_current_branch() {
+  echo $(git_current_branch || echo "(no branch)")
+}
+
+function ssh_connection() {
+  if [[ -n $SSH_CONNECTION ]]; then
+    echo "%{$fg_bold[red]%}(ssh) "
+  fi
+}
 
 function _date() {
     echo "%{$fg[yellow]%}$(date +'%F %T')%{$reset_color%}"
 }
+
 function _user_host() {
     me="%n@%m"
     echo "%{$fg[cyan]%}$me%{$reset_color%}:"
 }
 
-function _vi_status() {
-  if {echo $fpath | grep -q "plugins/vi-mode"}; then
-    echo "$(vi_mode_prompt_info)"
-  fi
-}
-
-function _ruby_version() {
-  if {echo $fpath | grep -q "plugins/rvm"}; then
-    echo "%{$fg[grey]%}$(rvm_prompt_info)%{$reset_color%}"
-  fi
-}
-
-# Determine the time since last commit. If branch is clean,
-# use a neutral color, otherwise colors will vary according to time.
 function _git_time_since_commit() {
   if git rev-parse --git-dir > /dev/null 2>&1; then
     # Only proceed if there is actually a commit.
@@ -65,34 +87,14 @@ function _git_time_since_commit() {
   fi
 }
 
-if [[ $USER == "root" ]]; then
-  CARETCOLOR="red"
-else
-  CARETCOLOR="white"
-fi
+local ret_status="%(?:%{$fg_bold[green]%}:%{$fg_bold[red]%})%?%{$reset_color%}"
+PROMPT=$'\n$(ssh_connection)$(_user_host)$(my_git_prompt) $(_date): %~\n[${ret_status}] %# '
 
-MODE_INDICATOR="%{$fg_bold[yellow]%}❮%{$reset_color%}%{$fg[yellow]%}❮❮%{$reset_color%}"
-
-ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg[green]%}"
-ZSH_THEME_GIT_PROMPT_SUFFIX="%{$reset_color%}"
-
-ZSH_THEME_GIT_PROMPT_DIRTY=" %{$fg[red]%}✗%{$reset_color%}"
-ZSH_THEME_GIT_PROMPT_CLEAN=" %{$fg[green]%}✔%{$reset_color%}"
-ZSH_THEME_GIT_PROMPT_ADDED="%{$fg[green]%}✚ "
-ZSH_THEME_GIT_PROMPT_MODIFIED="%{$fg[yellow]%}⚑ "
-ZSH_THEME_GIT_PROMPT_DELETED="%{$fg[red]%}✖ "
-ZSH_THEME_GIT_PROMPT_RENAMED="%{$fg[blue]%}▴ "
-ZSH_THEME_GIT_PROMPT_UNMERGED="%{$fg[cyan]%}§ "
-ZSH_THEME_GIT_PROMPT_UNTRACKED="%{$fg[grey]%}◒ "
-
-# Colors vary depending on time lapsed.
-ZSH_THEME_GIT_TIME_SINCE_COMMIT_SHORT="%{$fg[green]%}"
-ZSH_THEME_GIT_TIME_SHORT_COMMIT_MEDIUM="%{$fg[yellow]%}"
-ZSH_THEME_GIT_TIME_SINCE_COMMIT_LONG="%{$fg[red]%}"
-ZSH_THEME_GIT_TIME_SINCE_COMMIT_NEUTRAL="%{$fg[grey]%}"
-
-# LS colors, made with http://geoff.greer.fm/lscolors/
-export LSCOLORS="exfxcxdxbxegedabagacad"
-export LS_COLORS='di=34;40:ln=35;40:so=32;40:pi=33;40:ex=31;40:bd=34;46:cd=34;43:su=0;41:sg=0;46:tw=0;42:ow=0;43:'
-export GREP_COLOR='1;33'
-
+ZSH_THEME_PROMPT_RETURNCODE_PREFIX="%{$fg_bold[red]%}"
+ZSH_THEME_GIT_PROMPT_PREFIX=" $fg[white]‹ %{$fg_bold[yellow]%}"
+ZSH_THEME_GIT_PROMPT_AHEAD="%{$fg_bold[magenta]%}↑"
+ZSH_THEME_GIT_PROMPT_STAGED="%{$fg_bold[green]%}●"
+ZSH_THEME_GIT_PROMPT_UNSTAGED="%{$fg_bold[red]%}●"
+ZSH_THEME_GIT_PROMPT_UNTRACKED="%{$fg_bold[white]%}●"
+ZSH_THEME_GIT_PROMPT_UNMERGED="%{$fg_bold[red]%}✕"
+ZSH_THEME_GIT_PROMPT_SUFFIX=" $fg_bold[white]›%{$reset_color%}"
